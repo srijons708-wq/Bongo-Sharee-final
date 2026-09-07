@@ -1,0 +1,10 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Button from '../components/ui/Button.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+export default function ResetPassword() {
+  const navigate = useNavigate(); const { showToast } = useToast(); const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  const submit = async (e) => { e.preventDefault(); setError(''); if (password.length < 8) return setError('Password must be at least 8 characters.'); if (password !== confirm) return setError('Passwords do not match.'); if (!isSupabaseConfigured) { showToast('Demo mode: password reset is not persisted.'); navigate('/login'); return; } setSaving(true); try { const { error: err } = await supabase.auth.updateUser({ password }); if (err) throw err; showToast('Password updated — please sign in'); navigate('/login'); } catch (e) { setError(e.message || 'Could not update password.'); } finally { setSaving(false); } };
+  return <div className="container-content section-pad py-16 flex justify-center"><div className="w-full max-w-sm"><div className="text-center mb-8"><span className="eyebrow">Account Recovery</span><h1 className="font-display text-3xl mt-2">Set New Password</h1></div><form onSubmit={submit} className="space-y-4"><input required type="password" placeholder="New Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border border-ink/20 px-3 py-2.5 text-sm outline-none focus:border-burgundy" /><input required type="password" placeholder="Confirm New Password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full border border-ink/20 px-3 py-2.5 text-sm outline-none focus:border-burgundy" />{error && <p className="text-xs text-red-500">{error}</p>}<Button disabled={saving} type="submit" className="w-full">{saving ? 'Updating…' : 'Update Password'}</Button></form></div></div>;
+}
