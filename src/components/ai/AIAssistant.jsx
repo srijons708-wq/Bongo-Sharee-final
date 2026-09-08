@@ -2,12 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
-
 export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নির্বাচন বা যেকোনো তথ্যে আপনাকে কীভাবে সাহায্য করতে পারি?' }
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। সাহায্য করতে পারি?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +21,7 @@ export default function AIAssistant({ isOpen, onClose }) {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     const userMsg = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
@@ -31,22 +29,23 @@ export default function AIAssistant({ isOpen, onClose }) {
 
     try {
       if (!apiKey) {
-        throw new Error("Netlify-তে VITE_GEMINI_API_KEY সেট করুন।");
+        throw new Error("Netlify-তে VITE_GEMINI_API_KEY পাওয়া যায়নি।");
       }
 
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: userMsg,
         config: {
-          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের একজন দক্ষ এআই এজেন্ট। যেকোনো প্রশ্নের উত্তর সর্বদা অত্যন্ত নম্র ও সাবলীল বাংলায় দেবেন।"
+          systemInstruction: "আপনি বঙ্গ-শাড়ি প্ল্যাটফর্মের অত্যন্ত দক্ষ এআই এজেন্ট। সব সময় অত্যন্ত চমৎকার ও সাবলীল বাংলায় উত্তর দেবেন।"
         }
       });
 
-      const reply = response.text || "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
+      const reply = response.text || "কোনো উত্তর পাওয়া যায়নি।";
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
     } catch (err) {
       console.error("Gemini Error:", err);
-      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'এজেন্ট সংযোগ করতে পারছে না।'}` }]);
+      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'AI সার্ভিস বন্ধ আছে।'}` }]);
     } finally {
       setLoading(false);
     }
@@ -80,7 +79,7 @@ export default function AIAssistant({ isOpen, onClose }) {
         {loading && (
           <div className="flex items-center space-x-2 text-gray-500 text-sm p-2">
             <Loader2 className="w-4 h-4 animate-spin text-rose-800" />
-            <span>AI এজেন্ট চিন্তা করছে...</span>
+            <span>AI চিন্তা করছে...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
