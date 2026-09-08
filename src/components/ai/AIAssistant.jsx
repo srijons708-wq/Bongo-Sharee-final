@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { Send, Bot, User, Sparkles, Loader2, ShoppingBag } from 'lucide-react';
+import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
-export default function AIAssistant() {
+export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'স্বাগতম! আমি আপনার বঙ্গ-শাড়ি স্মার্ট এআই এজেন্ট। আজ আপনার কেমন শাড়ি প্রয়োজন? অনুষ্ঠান, বাজেট বা রঙের কথা জানাতে পারেন।' }
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নির্বাচন বা যেকোনো তথ্যে আপনাকে কীভাবে সাহায্য করতে পারি?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function AIAssistant() {
         model: 'gemini-2.5-flash',
         contents: userMsg,
         config: {
-          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের প্রফেশনাল এআই শপিং এজেন্ট। গ্রাহকের পছন্দ, বাজেট ও অনুষ্ঠান অনুযায়ী সেরা শাড়ি বেছে দিতে সাহায্য করবেন। সুন্দর ও শালীন বাংলায় সংক্ষিপ্ত পরামর্শ দেবেন।"
+          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) ই-কমার্স প্ল্যাটফর্মের একজন দক্ষ ও বুদ্ধিমান এআই শপিং এজেন্ট। গ্রাহককে যেকোনো ভাষায় প্রশ্ন করা হলেও সর্বদা অত্যন্ত নম্র ও সাবলীল বাংলায় উত্তর দেবেন। শাড়ির ফ্যাশন, জামদানি, কাঞ্জিভরম, সিল্ক, সুতি শাড়ি, বাজেট ও যেকোনো অনুষ্ঠানে শাড়ি বাছাইয়ের জন্য সঠিক পরামর্শ দেবেন।"
         }
       });
 
@@ -46,69 +46,62 @@ export default function AIAssistant() {
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
     } catch (err) {
       console.error("Gemini Error:", err);
-      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'এজেন্ট রেসপন্স করতে পারছে না।'}` }]);
+      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'এজেন্ট সংযোগ করতে পারছে না।'}` }]);
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="max-w-4xl mx-auto my-8 p-4">
-      <div className="bg-white rounded-2xl shadow-xl border overflow-hidden flex flex-col h-[650px]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 p-6 text-white flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Sparkles className="w-6 h-6 text-yellow-300" />
+    <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col h-[500px] overflow-hidden">
+      <div className="bg-gradient-to-r from-rose-900 to-rose-800 p-4 text-white flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <Sparkles className="w-5 h-5 text-yellow-300" />
+          <h3 className="font-semibold text-lg">বঙ্গ-শাড়ি AI Agent</h3>
+        </div>
+        <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-full transition">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50">
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex items-start space-x-2 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+            <div className={`p-2 rounded-full ${msg.role === 'user' ? 'bg-rose-900 text-white' : 'bg-rose-100 text-rose-900'}`}>
+              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
             </div>
-            <div>
-              <h2 className="font-bold text-xl">বঙ্গ-শাড়ি AI শপিং এজেন্ট</h2>
-              <p className="text-xs text-pink-100">আপনার ব্যক্তিগত ফ্যাশন ও শাড়ি নির্বাচন সহকারী</p>
+            <div className={`p-3 rounded-2xl max-w-[80%] text-sm ${msg.role === 'user' ? 'bg-rose-900 text-white rounded-tr-none' : 'bg-white text-gray-800 shadow-sm border rounded-tl-none'}`}>
+              {msg.text}
             </div>
           </div>
-          <ShoppingBag className="w-6 h-6 text-pink-200" />
-        </div>
+        ))}
+        {loading && (
+          <div className="flex items-center space-x-2 text-gray-500 text-sm p-2">
+            <Loader2 className="w-4 h-4 animate-spin text-rose-800" />
+            <span>AI এজেন্ট চিন্তা করছে...</span>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50">
-          {messages.map((msg, index) => (
-            <div key={index} className={`flex items-start space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-              <div className={`p-2.5 rounded-full ${msg.role === 'user' ? 'bg-pink-600 text-white' : 'bg-rose-100 text-pink-600'}`}>
-                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
-              </div>
-              <div className={`p-4 rounded-2xl max-w-[80%] text-sm leading-relaxed ${msg.role === 'user' ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white text-gray-800 shadow-sm border rounded-tl-none'}`}>
-                {msg.text}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex items-center space-x-2 text-gray-500 text-sm p-3 bg-white rounded-xl w-fit shadow-sm border">
-              <Loader2 className="w-4 h-4 animate-spin text-pink-600" />
-              <span>এজেন্ট ভাবছে...</span>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Bar */}
-        <div className="p-4 bg-white border-t flex items-center space-x-3">
-          <input
-            type="text"
-            placeholder="উদাহরণ: বিয়ের জন্য ১০,০০০ টাকার মধ্যে কাঞ্জিভরম শাড়ি দেখাও..."
-            className="flex-1 border border-gray-200 rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-pink-500 transition"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          />
-          <button
-            onClick={handleSend}
-            disabled={loading}
-            className="bg-pink-600 hover:bg-pink-700 text-white px-5 py-3 rounded-xl disabled:opacity-50 transition flex items-center space-x-2 font-medium text-sm"
-          >
-            <span>পাঠান</span>
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
+      <div className="p-3 bg-white border-t flex items-center space-x-2">
+        <input
+          type="text"
+          placeholder="শাড়ি নিয়ে যেকোনো প্রশ্ন করুন..."
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-rose-800"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+        />
+        <button
+          onClick={handleSend}
+          disabled={loading}
+          className="bg-rose-900 hover:bg-rose-800 text-white p-2 rounded-xl disabled:opacity-50 transition"
+        >
+          <Send className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
