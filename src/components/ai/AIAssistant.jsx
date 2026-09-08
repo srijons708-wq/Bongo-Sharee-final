@@ -31,14 +31,14 @@ export default function AIAssistant({ isOpen, onClose }) {
 
     try {
       if (!apiKey) {
-        throw new Error("API Key পাওয়া যায়নি। Netlify-তে VITE_GEMINI_API_KEY সেট করুন।");
+        throw new Error("Netlify-তে VITE_GEMINI_API_KEY সেট করুন।");
       }
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: userMsg,
         config: {
-          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) ই-কমার্স প্ল্যাটফর্মের একজন দক্ষ ও বুদ্ধিমান এআই শপিং এজেন্ট। গ্রাহককে যেকোনো ভাষায় প্রশ্ন করা হলেও সর্বদা অত্যন্ত নম্র ও সাবলীল বাংলায় উত্তর দেবেন। শাড়ির ফ্যাশন, জামদানি, কাঞ্জিভরম, সিল্ক, সুতি শাড়ি, বাজেট ও যেকোনো অনুষ্ঠানে শাড়ি বাছাইয়ের জন্য সঠিক পরামর্শ দেবেন।"
+          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের একজন দক্ষ এআই এজেন্ট। যেকোনো প্রশ্নের উত্তর সর্বদা অত্যন্ত নম্র ও সাবলীল বাংলায় দেবেন।"
         }
       });
 
@@ -89,7 +89,7 @@ export default function AIAssistant({ isOpen, onClose }) {
       <div className="p-3 bg-white border-t flex items-center space-x-2">
         <input
           type="text"
-          placeholder="শাড়ি নিয়ে যেকোনো প্রশ্ন করুন..."
+          placeholder="আপনার প্রশ্ন লিখুন..."
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-rose-800"
           value={input}
           onChange={(e) => setInput(e.target.value)}
