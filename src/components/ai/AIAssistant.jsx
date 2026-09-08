@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
 export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। সাহায্য করতে পারি?' }
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নিয়ে কোনো সাহায্য লাগবে?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,25 +26,38 @@ export default function AIAssistant({ isOpen, onClose }) {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
 
+    if (!apiKey) {
+      setMessages(prev => [...prev, { role: 'model', text: 'এরর: VITE_GEMINI_API_KEY পাওয়া যায়নি। Netlify Settings চেক করুন।' }]);
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!apiKey) {
-        throw new Error("Netlify-তে VITE_GEMINI_API_KEY পাওয়া যায়নি।");
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: "আপনি বঙ্গ-শাড়ি প্ল্যাটফর্মের অত্যন্ত নম্র ও প্রফেশনাল শপিং এজেন্ট। উত্তর সর্বদা সাবলীল বাংলা ভাষায় দেবেন।" }]
+            },
+            contents: [{ parts: [{ text: userMsg }] }]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || `HTTP error! Status: ${response.status}`);
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: userMsg,
-        config: {
-          systemInstruction: "আপনি বঙ্গ-শাড়ি প্ল্যাটফর্মের অত্যন্ত দক্ষ এআই এজেন্ট। সব সময় অত্যন্ত চমৎকার ও সাবলীল বাংলায় উত্তর দেবেন।"
-        }
-      });
-
-      const reply = response.text || "কোনো উত্তর পাওয়া যায়নি।";
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "কোনো উত্তর পাওয়া যায়নি।";
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
     } catch (err) {
-      console.error("Gemini Error:", err);
-      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'AI সার্ভিস বন্ধ আছে।'}` }]);
+      console.error("Gemini Direct Error:", err);
+      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message}` }]);
     } finally {
       setLoading(false);
     }
@@ -79,7 +91,7 @@ export default function AIAssistant({ isOpen, onClose }) {
         {loading && (
           <div className="flex items-center space-x-2 text-gray-500 text-sm p-2">
             <Loader2 className="w-4 h-4 animate-spin text-rose-800" />
-            <span>AI চিন্তা করছে...</span>
+            <span>AI এজেন্ট উত্তর তৈরি করছে...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
