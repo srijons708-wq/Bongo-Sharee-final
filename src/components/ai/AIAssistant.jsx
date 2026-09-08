@@ -3,7 +3,7 @@ import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
 export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নিয়ে কোনো সাহায্য লাগবে?' }
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নিয়ে যেকোনো তথ্য বা পছন্দের জন্য সাহায্য করতে পারি?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function AIAssistant({ isOpen, onClose }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: "আপনি বঙ্গ-শাড়ি প্ল্যাটফর্মের অত্যন্ত নম্র ও প্রফেশনাল শপিং এজেন্ট। উত্তর সর্বদা সাবলীল বাংলা ভাষায় দেবেন।" }]
+              parts: [{ text: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের অত্যন্ত দক্ষ ও প্রফেশনাল শপিং এজেন্ট। ক্রেতার প্রশ্ন অনুযায়ী সর্বদা বিনয়ী ও সাবলীল বাংলা ভাষায় উত্তর দেবেন।" }]
             },
             contents: [{ parts: [{ text: userMsg }] }]
           })
@@ -91,7 +91,7 @@ export default function AIAssistant({ isOpen, onClose }) {
         {loading && (
           <div className="flex items-center space-x-2 text-gray-500 text-sm p-2">
             <Loader2 className="w-4 h-4 animate-spin text-rose-800" />
-            <span>AI এজেন্ট উত্তর তৈরি করছে...</span>
+            <span>AI উত্তর তৈরি করছে...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
