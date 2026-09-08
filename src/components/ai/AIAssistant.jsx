@@ -32,35 +32,53 @@ export default function AIAssistant({ isOpen, onClose }) {
       return;
     }
 
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের অত্যন্ত দক্ষ ও প্রফেশনাল শপিং এজেন্ট। ক্রেতার প্রশ্ন অনুযায়ী সর্বদা বিনয়ী ও সাবলীল বাংলা ভাষায় উত্তর দেবেন।" }]
-            },
-            contents: [{ parts: [{ text: userMsg }] }]
-          })
+    // List of models to try in sequence
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.0-flash',
+      'gemini-pro'
+    ];
+
+    let success = false;
+    let lastErrorMessage = '';
+
+    for (const modelName of modelsToTry) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) প্ল্যাটফর্মের অত্যন্ত দক্ষ ও প্রফেশনাল শপিং এজেন্ট। ক্রেতার প্রশ্ন অনুযায়ী সর্বদা বিনয়ী ও সাবলীল বাংলা ভাষায় উত্তর দেবেন।" }]
+              },
+              contents: [{ parts: [{ text: userMsg }] }]
+            })
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          const reply = data.candidates[0].content.parts[0].text;
+          setMessages(prev => [...prev, { role: 'model', text: reply }]);
+          success = true;
+          break; // Exit loop on successful response
+        } else {
+          lastErrorMessage = data.error?.message || `Model ${modelName} failed.`;
         }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || `HTTP error! Status: ${response.status}`);
+      } catch (err) {
+        lastErrorMessage = err.message;
       }
-
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "কোনো উত্তর পাওয়া যায়নি।";
-      setMessages(prev => [...prev, { role: 'model', text: reply }]);
-    } catch (err) {
-      console.error("Gemini Direct Error:", err);
-      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message}` }]);
-    } finally {
-      setLoading(false);
     }
+
+    if (!success) {
+      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${lastErrorMessage}` }]);
+    }
+
+    setLoading(false);
   };
 
   if (!isOpen) return null;
