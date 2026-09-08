@@ -3,7 +3,7 @@ import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
 export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'হ্যালো! আমি বঙ্গ-শাড়ি এআই এজেন্ট।' }
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই এজেন্ট। শাড়ি নিয়ে যেকোনো তথ্য বা পছন্দের জন্য সাহায্য করতে পারি?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,39 +27,14 @@ export default function AIAssistant({ isOpen, onClose }) {
     setLoading(true);
 
     if (!apiKey) {
-      setMessages(prev => [...prev, { role: 'model', text: 'এরর: VITE_GEMINI_API_KEY পাওয়া যায়নি।' }]);
+      setMessages(prev => [...prev, { role: 'model', text: 'এরর: VITE_GEMINI_API_KEY পাওয়া যায়নি। Netlify Settings চেক করুন।' }]);
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Fetch available models first
-      const listResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-      );
-      const listData = await listResponse.json();
-
-      if (!listResponse.ok) {
-        throw new Error(listData.error?.message || "Model list আনতে ব্যর্থ হয়েছে।");
-      }
-
-      // Filter models that support generateContent
-      const validModels = listData.models
-        ? listData.models
-            .filter(m => m.supportedGenerationMethods?.includes("generateContent"))
-            .map(m => m.name.replace("models/", ""))
-        : [];
-
-      if (validModels.length === 0) {
-        throw new Error("আপনার API Key-এর জন্য কোনো চ্যাট মডেল এভেলেবল নেই।");
-      }
-
-      // Select the first working model dynamically
-      const activeModel = validModels.find(m => m.includes("flash")) || validModels[0];
-
-      // 2. Send message using the auto-detected model
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -75,12 +50,11 @@ export default function AIAssistant({ isOpen, onClose }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || `Error using ${activeModel}`);
+        throw new Error(data.error?.message || `HTTP error! Status: ${response.status}`);
       }
 
       const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "কোনো উত্তর পাওয়া যায়নি।";
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
-
     } catch (err) {
       console.error("Gemini Error:", err);
       setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message}` }]);
