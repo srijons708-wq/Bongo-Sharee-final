@@ -1,184 +1,108 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, X, Send } from 'lucide-react';
-import { products } from '../../data/products';
+import React, { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
+import { Send, Bot, User, X, Sparkles, Loader2 } from 'lucide-react';
 
-/**
- * Demo-mode assistant: matches the message against simple keyword rules and
- * returns a canned response plus, where relevant, real product results.
- *
- * To connect a real model:
- *   1. Create a Supabase Edge Function (e.g. `ai-assistant`) that holds the
- *      model API key server-side and accepts { message, history }.
- *   2. Replace `getDemoReply()` below with a fetch() to
- *      `${import.meta.env.VITE_AI_ASSISTANT_ENDPOINT}` and stream/await
- *      the response.
- *   3. Nothing else in this component needs to change — messages, the
- *      panel UI, and suggested-product cards all already work off the
- *      same `reply` shape: { text, productIds }.
- */
-const SUGGESTIONS = [
-  'Find me a red wedding saree',
-  'Show sarees under $150',
-  'Which saree is best for a wedding?',
-  'Track my order',
-];
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
-function getDemoReply(message) {
-  const q = message.toLowerCase();
-
-  if (q.includes('track') && q.includes('order')) {
-    return { text: 'You can track any order from My Account → Orders. Want me to take you there?', link: '/account/orders' };
-  }
-  if (q.includes('wedding')) {
-    const matches = products.filter((p) => p.category === 'wedding' || p.category === 'kanjivaram' || p.category === 'banarasi').slice(0, 3);
-    return { text: 'For weddings, brides usually go for a heavier silk with a dense zari border. Here are a few strong picks:', productIds: matches.map((p) => p.id) };
-  }
-  if (q.includes('red') || q.includes('maroon') || q.includes('crimson')) {
-    const matches = products.filter((p) => /maroon|crimson|red/i.test(p.color)).slice(0, 3);
-    return { text: matches.length ? 'Here\u2019s what we have in red and maroon tones:' : 'We don\u2019t have a pure red in stock right now, but here are close warm tones:', productIds: matches.length ? matches.map((p) => p.id) : products.slice(0, 3).map((p) => p.id) };
-  }
-  const priceMatch = q.match(/under\s*\$?(\d+)/);
-  if (priceMatch) {
-    const limit = Number(priceMatch[1]);
-    const matches = products.filter((p) => p.price < limit).slice(0, 4);
-    return { text: matches.length ? `Sarees under $${limit}:` : `Nothing under $${limit} right now — our lowest priced piece is $${Math.min(...products.map((p) => p.price))}.`, productIds: matches.map((p) => p.id) };
-  }
-  if (q.includes('silk')) {
-    const matches = products.filter((p) => /silk/i.test(p.fabric)).slice(0, 3);
-    return { text: 'Our silk range spans Banarasi, Kanjivaram and Tussar weaves. A few favourites:', productIds: matches.map((p) => p.id) };
-  }
-  return {
-    text: 'I can help you find a saree by occasion, colour, fabric or budget — try one of the suggestions below, or tell me what you\u2019re shopping for.',
-  };
-}
-
-export default function AIAssistant() {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState('');
+export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
-    { id: 'm0', role: 'assistant', text: 'Hi! I\u2019m the Bongo Sharee assistant. Ask me to find a saree by occasion, colour, fabric or budget.' },
+    { role: 'model', text: 'হ্যালো! আমি আপনার বঙ্গ-শাড়ি এআই অ্যাসিস্ট্যান্ট। শাড়ি পছন্দ বা যেকোনো তথ্যে সাহায্য করতে পারি?' }
   ]);
-  const scrollRef = useRef(null);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, open]);
+    scrollToBottom();
+  }, [messages]);
 
-  const send = (text) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const userMsg = { id: `u${Date.now()}`, role: 'user', text: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMsg = input.trim();
     setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setLoading(true);
 
-    setTimeout(() => {
-      const reply = getDemoReply(trimmed);
-      setMessages((prev) => [
-        ...prev,
-        { id: `a${Date.now()}`, role: 'assistant', text: reply.text, productIds: reply.productIds, link: reply.link },
-      ]);
-    }, 500);
+    try {
+      if (!apiKey) {
+        throw new Error("API Key পাওয়া যায়নি। Netlify-তে VITE_GEMINI_API_KEY সেট করুন।");
+      }
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: userMsg,
+        config: {
+          systemInstruction: "আপনি বঙ্গ-শাড়ি (Bongo Sharee) ই-কমার্স প্ল্যাটফর্মের একজন অত্যন্ত সহানুভূতির সাথে সাহায্যকারী সহকারী। সব সময় সুন্দর ও সাবলীল বাংলায় উত্তর দেবেন। শাড়ির ফ্যাশন, জামদানি, কাঞ্জিভরম, সুতি, সিল্ক শাড়ি ইত্যাদি সম্পর্কিত উত্তর দেবেন।"
+        }
+      });
+
+      const reply = response.text || "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
+      setMessages(prev => [...prev, { role: 'model', text: reply }]);
+    } catch (err) {
+      console.error("Gemini Error:", err);
+      setMessages(prev => [...prev, { role: 'model', text: `এরর: ${err.message || 'AI রেসপন্স করতে পারছে না।'}` }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label="AI Assistant"
-        className="fixed bottom-6 right-6 z-[80] flex items-center gap-2 bg-burgundy text-warmwhite px-5 py-3.5 rounded-full shadow-soft hover:bg-burgundy-dark transition-colors"
-      >
-        <Sparkles size={18} />
-        <span className="text-xs tracking-wide font-semibold hidden sm:inline">AI Assistant</span>
-      </button>
-
-      {open && (
-        <div className="fixed bottom-24 right-6 z-[80] w-[92vw] max-w-sm h-[70vh] max-h-[560px] bg-warmwhite shadow-soft flex flex-col">
-          <div className="flex items-center justify-between px-5 py-4 bg-burgundy text-warmwhite">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} />
-              <span className="font-display text-base">Saree Assistant</span>
-            </div>
-            <button onClick={() => setOpen(false)} aria-label="Close assistant"><X size={18} /></button>
-          </div>
-
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] text-sm px-3.5 py-2.5 rounded-sm ${
-                    m.role === 'user' ? 'bg-ink text-warmwhite' : 'bg-ink/5 text-ink'
-                  }`}
-                >
-                  <p>{m.text}</p>
-                  {m.link && (
-                    <button onClick={() => navigate(m.link)} className="text-burgundy underline text-xs mt-1">
-                      Go there
-                    </button>
-                  )}
-                  {m.productIds && (
-                    <div className="grid grid-cols-2 gap-2 mt-2.5">
-                      {m.productIds.map((id) => {
-                        const p = products.find((prod) => prod.id === id);
-                        if (!p) return null;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => {
-                              navigate(`/products/${p.slug}`);
-                              setOpen(false);
-                            }}
-                            className="text-left"
-                          >
-                            <div className="aspect-square overflow-hidden bg-ink/10">
-                              <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
-                            </div>
-                            <p className="text-[11px] mt-1 line-clamp-1">{p.name}</p>
-                            <p className="text-[11px] text-muted">${p.price}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {messages.length <= 1 && (
-            <div className="px-4 pb-2 flex flex-wrap gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="text-[11px] border border-ink/20 rounded-full px-3 py-1.5 hover:border-burgundy hover:text-burgundy"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-            className="flex items-center gap-2 p-3 border-t border-ink/10"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a saree&hellip;"
-              className="flex-1 bg-ink/5 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-burgundy"
-            />
-            <button type="submit" aria-label="Send" className="text-burgundy p-2">
-              <Send size={18} />
-            </button>
-          </form>
+    <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col h-[500px] overflow-hidden">
+      <div className="bg-gradient-to-r from-pink-600 to-rose-500 p-4 text-white flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <Sparkles className="w-5 h-5 text-yellow-300" />
+          <h3 className="font-semibold text-lg">বঙ্গ-শাড়ি AI সহকারী</h3>
         </div>
-      )}
-    </>
+        <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-full transition">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50">
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex items-start space-x-2 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+            <div className={`p-2 rounded-full ${msg.role === 'user' ? 'bg-pink-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+            </div>
+            <div className={`p-3 rounded-2xl max-w-[80%] text-sm ${msg.role === 'user' ? 'bg-pink-600 text-white rounded-tr-none' : 'bg-white text-gray-800 shadow-sm border rounded-tl-none'}`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex items-center space-x-2 text-gray-500 text-sm p-2">
+            <Loader2 className="w-4 h-4 animate-spin text-pink-600" />
+            <span>AI চিন্তা করছে...</span>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-3 bg-white border-t flex items-center space-x-2">
+        <input
+          type="text"
+          placeholder="আপনার প্রশ্ন লিখুন..."
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-pink-500"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+        />
+        <button
+          onClick={handleSend}
+          disabled={loading}
+          className="bg-pink-600 hover:bg-pink-700 text-white p-2 rounded-xl disabled:opacity-50 transition"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 }
